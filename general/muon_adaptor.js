@@ -43,16 +43,14 @@ const MuonAdaptorApp = {
         return results
     },
 
-    getBlocksHashes: async function (chainId, blockNumbers) {
+    getBlocksHashes: async function (chainId, fromBlock, toBlock) {
         let requests = []
-        blockNumbers.forEach(
-            (index, blockNumber) => {
-                requests.push({
-                    req: this.makeEthGetBlockRequest(blockNumber, index),
-                    decoder: (res => res.hash),
-                })
-            },
-        )
+        for (let blockNumber = fromBlock; blockNumber <= toBlock; blockNumber++) {
+            requests.push({
+                req: this.makeEthGetBlockRequest(requests.length, blockNumber),
+                decoder: (res => res.hash),
+            })
+        }
         const w3 = networksWeb3[chainId]
         const hashes = await this.makeBatchRequest(w3, requests)
         return hashes
@@ -64,16 +62,21 @@ const MuonAdaptorApp = {
             case 'blocks-hashes':
                 let {
                     chainId,
-                    blockNumbers,
+                    fromBlock,
+                    toBlock,
                 } = params
 
-                blockNumbers = JSON.parse(blockNumbers)
+                fromBlock = parseInt(fromBlock)
+                toBlock = parseInt(toBlock)
 
-                const hashes = await this.getBlocksHashes(chainId, blockNumbers)
+                if (fromBlock > toBlock) throw { message: 'BAD_BLOCK_RANGE' }
+
+                const hashes = await this.getBlocksHashes(chainId, fromBlock, toBlock)
 
                 return {
                     chainId,
-                    blockNumbers,
+                    fromBlock,
+                    toBlock,
                     hashes,
                 }
             default:
@@ -87,14 +90,16 @@ const MuonAdaptorApp = {
 
                 let {
                     chainId,
-                    blockNumbers,
+                    fromBlock,
+                    toBlock,
                     hashes,
                 } = result
 
                 return [
                     { type: 'uint256', value: chainId },
-                    { type: 'uint256[]', value: blockNumbers },
-                    { type: 'bytes32[]', value: hashes },
+                    { type: 'uint256', value: fromBlock },
+                    { type: 'uint256', value: toBlock },
+                    { type: 'uint256[]', value: hashes },
                     { type: 'uint256', value: request.data.timestamp },
                 ]
             }
